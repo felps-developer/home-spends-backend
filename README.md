@@ -303,7 +303,5 @@ O código segue os princípios SOLID:
 - **DTO Pattern**: Transferência de dados entre camadas
 - **Dependency Injection**: Injeção de dependências via construtores
 
-## Licença
 
-Este projeto foi desenvolvido como parte de um teste técnico.
 
