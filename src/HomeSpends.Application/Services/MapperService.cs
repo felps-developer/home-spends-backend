@@ -11,6 +11,11 @@ namespace HomeSpends.Application.Services;
 /// </summary>
 public class MapperService : IMapperService
 {
+    /// <summary>
+    /// Converte uma entidade Category para seu DTO correspondente.
+    /// </summary>
+    /// <param name="category">Entidade Category a ser convertida.</param>
+    /// <returns>DTO da categoria com todos os campos mapeados.</returns>
     public CategoryDto MapToDto(Category category)
     {
         return new CategoryDto
@@ -23,6 +28,11 @@ public class MapperService : IMapperService
         };
     }
 
+    /// <summary>
+    /// Converte uma entidade Person para seu DTO correspondente.
+    /// </summary>
+    /// <param name="person">Entidade Person a ser convertida.</param>
+    /// <returns>DTO da pessoa com todos os campos mapeados.</returns>
     public PersonDto MapToDto(Person person)
     {
         return new PersonDto
@@ -35,6 +45,13 @@ public class MapperService : IMapperService
         };
     }
 
+    /// <summary>
+    /// Converte uma entidade Transaction para seu DTO correspondente.
+    /// IMPORTANTE: Este método assume que os relacionamentos (Category e Person) já foram carregados.
+    /// Use GetByIdWithDetailsAsync ou GetAllWithDetailsAsync no repositório antes de chamar este método.
+    /// </summary>
+    /// <param name="transaction">Entidade Transaction a ser convertida (deve ter Category e Person carregados).</param>
+    /// <returns>DTO da transação com todos os campos e relacionamentos mapeados.</returns>
     public TransactionDto MapToDto(Transaction transaction)
     {
         return new TransactionDto
@@ -43,6 +60,7 @@ public class MapperService : IMapperService
             Description = transaction.Description,
             Value = transaction.Value,
             Type = transaction.Type,
+            // Mapeia o relacionamento Category para CategoryDto
             Category = new CategoryDto
             {
                 Id = transaction.Category.Id,
@@ -51,6 +69,7 @@ public class MapperService : IMapperService
                 CreatedAt = transaction.Category.CreatedAt,
                 UpdatedAt = transaction.Category.UpdatedAt
             },
+            // Mapeia o relacionamento Person para PersonDto
             Person = new PersonDto
             {
                 Id = transaction.Person.Id,

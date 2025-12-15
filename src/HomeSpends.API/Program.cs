@@ -6,9 +6,15 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// ============================================
+// CONFIGURAÇÃO DE SERVIÇOS
+// ============================================
+
+// Adiciona controllers da API
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+// Configuração do Swagger/OpenAPI para documentação da API
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
@@ -19,37 +25,58 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+// ============================================
+// CONFIGURAÇÃO DO BANCO DE DADOS
+// ============================================
 // Configuração do Entity Framework Core com PostgreSQL
+// A connection string é lida do appsettings.json através da chave "ConnectionStrings:DefaultConnection"
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));
 
-// Injeção de dependências - Repositórios
+// ============================================
+// INJEÇÃO DE DEPENDÊNCIAS - REPOSITÓRIOS
+// ============================================
+// Repositórios são registrados com escopo Scoped (uma instância por requisição HTTP)
+// Isso garante que a mesma instância do DbContext seja usada durante toda a requisição
 builder.Services.AddScoped<IPersonRepository, PersonRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 
-// Injeção de dependências - Serviços
-builder.Services.AddScoped<IMapperService, MapperService>();
-builder.Services.AddScoped<IPersonService, PersonService>();
-builder.Services.AddScoped<ICategoryService, CategoryService>();
-builder.Services.AddScoped<ITransactionService, TransactionService>();
-builder.Services.AddScoped<IReportService, ReportService>();
+// ============================================
+// INJEÇÃO DE DEPENDÊNCIAS - SERVIÇOS
+// ============================================
+// Serviços de aplicação que implementam a lógica de negócio
+// Também registrados com escopo Scoped para compartilhar o mesmo DbContext
+builder.Services.AddScoped<IMapperService, MapperService>();        // Serviço de mapeamento entre entidades e DTOs
+builder.Services.AddScoped<IPersonService, PersonService>();         // Serviço de lógica de negócio para pessoas
+builder.Services.AddScoped<ICategoryService, CategoryService>();     // Serviço de lógica de negócio para categorias
+builder.Services.AddScoped<ITransactionService, TransactionService>(); // Serviço de lógica de negócio para transações
+builder.Services.AddScoped<IReportService, ReportService>();        // Serviço de geração de relatórios
 
-// CORS
+// ============================================
+// CONFIGURAÇÃO DE CORS
+// ============================================
+// CORS (Cross-Origin Resource Sharing) permite que o frontend faça requisições para a API
+// A política "AllowAll" permite requisições de qualquer origem (apenas para desenvolvimento)
+// Em produção, deve-se restringir para origens específicas
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        policy.AllowAnyOrigin()      // Permite qualquer origem
+              .AllowAnyMethod()       // Permite qualquer método HTTP (GET, POST, etc.)
+              .AllowAnyHeader();     // Permite qualquer header
     });
 });
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// ============================================
+// CONFIGURAÇÃO DO PIPELINE HTTP
+// ============================================
+
+// Swagger/OpenAPI - Documentação interativa da API (apenas em desenvolvimento)
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -59,16 +86,28 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+// Redireciona requisições HTTP para HTTPS (segurança)
 app.UseHttpsRedirection();
+
+// Aplica a política CORS configurada anteriormente
 app.UseCors("AllowAll");
 
 // Middleware de tratamento global de exceções
+// Captura todas as exceções não tratadas e retorna respostas HTTP padronizadas
+// Centraliza o tratamento de erros seguindo o princípio Single Responsibility
 app.UseMiddleware<HomeSpends.API.Middleware.GlobalExceptionHandlerMiddleware>();
 
+// Autorização (se necessário no futuro)
 app.UseAuthorization();
+
+// Mapeia os controllers da API
 app.MapControllers();
 
-// Aplicar migrations automaticamente (apenas em desenvolvimento)
+// ============================================
+// INICIALIZAÇÃO DO BANCO DE DADOS
+// ============================================
+// Aplica migrations automaticamente e popula dados iniciais (apenas em desenvolvimento)
+// Em produção, migrations devem ser aplicadas manualmente ou via CI/CD
 if (app.Environment.IsDevelopment())
 {
     using (var scope = app.Services.CreateScope())
@@ -77,9 +116,12 @@ if (app.Environment.IsDevelopment())
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
         try
         {
+            // Aplica todas as migrations pendentes automaticamente
+            // Cria ou atualiza o schema do banco de dados conforme necessário
             dbContext.Database.Migrate();
             
             // Popular o banco com dados iniciais (seed)
+            // Cria categorias e pessoas padrão para facilitar testes
             DbSeeder.Seed(dbContext);
             logger.LogInformation("Banco de dados populado com dados iniciais");
         }

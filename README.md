@@ -61,12 +61,19 @@ home-spends-backend/
 - .NET 8.0 SDK
 - Docker e Docker Compose
 - PostgreSQL (ou usar via Docker)
+- Git (para clonar o repositório)
+- EF Core Tools (para executar migrations localmente): `dotnet tool install --global dotnet-ef`
 
 ## Como Executar
 
 ### Usando Docker Compose (Recomendado)
 
-1. Clone o repositório
+1. Clone o repositório:
+```bash
+git clone <url-do-repositorio>
+cd home-spends-backend
+```
+
 2. Execute o comando:
 
 ```bash
@@ -75,30 +82,78 @@ docker-compose up -d
 
 Isso irá:
 - Criar e iniciar o container do PostgreSQL
+- Aguardar o PostgreSQL estar pronto (healthcheck)
 - Criar e iniciar o container da API
 - Aplicar as migrations automaticamente
+- Popular o banco com dados iniciais (seed)
+
+**Aguarde alguns segundos** para que os containers iniciem completamente.
 
 A API estará disponível em: `http://localhost:5000`
 Swagger UI: `http://localhost:5000/swagger`
 
-### Executando Localmente
-
-1. Certifique-se de que o PostgreSQL está rodando
-2. Configure a connection string no `appsettings.json`
-3. Execute as migrations:
-
+**Verificar logs (se necessário):**
 ```bash
-cd src/HomeSpends.API
-dotnet ef database update
+# Ver logs de todos os serviços
+docker-compose logs -f
+
+# Ver logs apenas da API
+docker-compose logs -f api
+
+# Ver logs apenas do PostgreSQL
+docker-compose logs -f postgres
 ```
 
-4. Execute a aplicação:
+**Parar os containers:**
+```bash
+docker-compose down
+```
 
+**Parar e remover volumes (limpar dados):**
+```bash
+docker-compose down -v
+```
+
+### Executando Localmente
+
+1. **Certifique-se de que o PostgreSQL está rodando** e acessível
+
+2. **Configure a connection string** no `appsettings.json` ou `appsettings.Development.json`:
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Port=5432;Database=home_spends;Username=postgres;Password=postgres"
+  }
+}
+```
+
+3. **Instale o EF Core Tools** (se ainda não tiver):
+```bash
+dotnet tool install --global dotnet-ef
+```
+
+4. **Restaure as dependências**:
+```bash
+cd src/HomeSpends.API
+dotnet restore
+```
+
+5. **Execute as migrations**:
+```bash
+dotnet ef database update --project ../HomeSpends.Infrastructure
+```
+
+6. **Execute a aplicação**:
 ```bash
 dotnet run
 ```
 
+A API estará disponível em: `http://localhost:5000` (ou a porta configurada no `launchSettings.json`)
+Swagger UI: `http://localhost:5000/swagger`
+
 ## Migrations
+
+**Nota:** Certifique-se de ter o EF Core Tools instalado: `dotnet tool install --global dotnet-ef`
 
 ### Criar uma nova migration
 
@@ -110,13 +165,22 @@ dotnet ef migrations add NomeDaMigration --project ../HomeSpends.Infrastructure
 ### Aplicar migrations
 
 ```bash
-dotnet ef database update
+cd src/HomeSpends.API
+dotnet ef database update --project ../HomeSpends.Infrastructure
 ```
 
 ### Reverter migration
 
 ```bash
-dotnet ef database update NomeDaMigrationAnterior
+cd src/HomeSpends.API
+dotnet ef database update NomeDaMigrationAnterior --project ../HomeSpends.Infrastructure
+```
+
+### Listar migrations aplicadas
+
+```bash
+cd src/HomeSpends.API
+dotnet ef migrations list --project ../HomeSpends.Infrastructure
 ```
 
 ## Endpoints da API
@@ -191,6 +255,35 @@ Onde `type` pode ser:
 2. **Restrição para Menores**: Menores de idade (menor de 18 anos) só podem ter despesas
 3. **Validação de Categoria**: A categoria deve permitir o tipo de transação (despesa/receita)
 4. **Valor Positivo**: O valor da transação deve ser positivo (validado no banco de dados)
+
+## Troubleshooting
+
+### Problemas comuns
+
+**Erro ao executar `docker-compose up`:**
+- Verifique se as portas 5000 e 5432 não estão em uso
+- Verifique se o Docker está rodando
+- Execute `docker-compose down` e tente novamente
+
+**Erro de conexão com o banco:**
+- Aguarde alguns segundos para o PostgreSQL iniciar completamente
+- Verifique os logs: `docker-compose logs postgres`
+- Verifique se a connection string está correta
+
+**Erro ao executar migrations localmente:**
+- Certifique-se de ter o EF Core Tools instalado: `dotnet tool install --global dotnet-ef`
+- Verifique se está no diretório correto (`src/HomeSpends.API`)
+- Verifique se a connection string está correta no `appsettings.json`
+- Certifique-se de que o PostgreSQL está rodando e acessível
+
+**Erro "Cannot find project":**
+- Certifique-se de estar no diretório `src/HomeSpends.API`
+- Use o caminho relativo correto: `--project ../HomeSpends.Infrastructure`
+
+**API não inicia:**
+- Verifique os logs: `docker-compose logs api`
+- Verifique se o PostgreSQL está acessível
+- Verifique se as migrations foram aplicadas
 
 ## Desenvolvimento
 

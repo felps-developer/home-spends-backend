@@ -33,12 +33,20 @@ public class TransactionService : ITransactionService
         _logger = logger;
     }
 
+    /// <summary>
+    /// Busca todas as transações cadastradas no sistema.
+    /// Carrega os relacionamentos (Pessoa e Categoria) para retornar dados completos.
+    /// </summary>
+    /// <param name="cancellationToken">Token de cancelamento para operações assíncronas.</param>
+    /// <returns>Lista de todas as transações convertidas para DTO.</returns>
     public async Task<IEnumerable<TransactionDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogInformation("Buscando todas as transações");
+            // Busca transações com relacionamentos carregados (Include)
             var transactions = await _transactionRepository.GetAllWithDetailsAsync(cancellationToken);
+            // Converte entidades para DTOs usando o serviço de mapeamento
             return transactions.Select(_mapper.MapToDto);
         }
         catch (Exception ex)
@@ -48,12 +56,21 @@ public class TransactionService : ITransactionService
         }
     }
 
+    /// <summary>
+    /// Busca uma transação específica pelo seu identificador único.
+    /// Carrega os relacionamentos (Pessoa e Categoria) para retornar dados completos.
+    /// </summary>
+    /// <param name="id">Identificador único da transação.</param>
+    /// <param name="cancellationToken">Token de cancelamento para operações assíncronas.</param>
+    /// <returns>DTO da transação encontrada ou null se não existir.</returns>
     public async Task<TransactionDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogInformation("Buscando transação com ID: {TransactionId}", id);
+            // Busca transação com relacionamentos carregados
             var transaction = await _transactionRepository.GetByIdWithDetailsAsync(id, cancellationToken);
+            // Retorna null se não encontrada, caso contrário converte para DTO
             return transaction != null ? _mapper.MapToDto(transaction) : null;
         }
         catch (Exception ex)
@@ -63,6 +80,18 @@ public class TransactionService : ITransactionService
         }
     }
 
+    /// <summary>
+    /// Cria uma nova transação no sistema.
+    /// Aplica validações e regras de negócio:
+    /// - Verifica se a pessoa existe
+    /// - Verifica se a categoria existe
+    /// - Valida se menores de idade só podem ter despesas (não receitas)
+    /// - Valida se a categoria permite o tipo de transação (despesa/receita)
+    /// </summary>
+    /// <param name="dto">DTO com os dados da transação a ser criada.</param>
+    /// <param name="cancellationToken">Token de cancelamento para operações assíncronas.</param>
+    /// <returns>DTO da transação criada com todos os relacionamentos carregados.</returns>
+    /// <exception cref="InvalidOperationException">Lançada quando alguma validação de negócio falha.</exception>
     public async Task<TransactionDto> CreateAsync(CreateTransactionDto dto, CancellationToken cancellationToken = default)
     {
         try
@@ -76,7 +105,8 @@ public class TransactionService : ITransactionService
                 throw new InvalidOperationException($"Pessoa com ID {dto.PersonId} não encontrada");
             }
 
-            // Regra de negócio: Menores de idade só podem ter despesas
+            // Regra de negócio: Menores de idade (menor de 18 anos) só podem ter despesas
+            // Esta é uma regra de negócio importante que restringe receitas para menores
             if (person.IsMinor && dto.Type != TransactionType.Expense)
             {
                 throw new InvalidOperationException("Menores de idade (menor de 18 anos) só podem ter despesas");
@@ -90,6 +120,7 @@ public class TransactionService : ITransactionService
             }
 
             // Regra de negócio: Validar se a categoria pode ser usada para o tipo de transação
+            // Cada categoria tem uma finalidade (Expense, Income ou Both) que restringe seu uso
             if (dto.Type == TransactionType.Expense && !category.CanBeUsedForExpense)
             {
                 throw new InvalidOperationException(
@@ -102,6 +133,7 @@ public class TransactionService : ITransactionService
                     $"A categoria '{category.Description}' não pode ser usada para receitas. Finalidade: {category.Purpose}");
             }
 
+            // Cria a entidade Transaction com os dados do DTO
             var transaction = new Transaction
             {
                 Id = Guid.NewGuid(),
@@ -113,9 +145,11 @@ public class TransactionService : ITransactionService
                 CreatedAt = DateTime.UtcNow
             };
 
+            // Persiste a transação no banco de dados
             var created = await _transactionRepository.AddAsync(transaction, cancellationToken);
 
-            // Carregar relacionamentos para retornar DTO completo
+            // Carregar relacionamentos (Person e Category) para retornar DTO completo
+            // Isso é necessário porque o AddAsync não carrega automaticamente os relacionamentos
             var transactionWithDetails = await _transactionRepository.GetByIdWithDetailsAsync(created.Id, cancellationToken);
             if (transactionWithDetails == null)
             {
@@ -124,6 +158,7 @@ public class TransactionService : ITransactionService
 
             _logger.LogInformation("Transação criada com sucesso: {TransactionId}", created.Id);
 
+            // Converte a entidade com relacionamentos para DTO e retorna
             return _mapper.MapToDto(transactionWithDetails);
         }
         catch (Exception ex)
