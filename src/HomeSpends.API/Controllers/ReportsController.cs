@@ -7,18 +7,14 @@ namespace HomeSpends.API.Controllers;
 /// <summary>
 /// Controller para relatórios de totais.
 /// </summary>
-[ApiController]
-[Route("api/[controller]")]
-[Produces("application/json")]
-public class ReportsController : ControllerBase
+public class ReportsController : BaseController
 {
     private readonly IReportService _reportService;
-    private readonly ILogger<ReportsController> _logger;
 
     public ReportsController(IReportService reportService, ILogger<ReportsController> logger)
+        : base(logger)
     {
         _reportService = reportService;
-        _logger = logger;
     }
 
     /// <summary>
@@ -30,16 +26,8 @@ public class ReportsController : ControllerBase
     [ProducesResponseType(typeof(PersonTotalsReportDto), StatusCodes.Status200OK)]
     public async Task<ActionResult<PersonTotalsReportDto>> GetPersonTotals(CancellationToken cancellationToken)
     {
-        try
-        {
-            var report = await _reportService.GetPersonTotalsAsync(cancellationToken);
-            return Ok(report);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Erro ao gerar relatório de totais por pessoa");
-            return StatusCode(500, new { message = "Erro interno do servidor ao gerar relatório" });
-        }
+        var report = await _reportService.GetPersonTotalsAsync(cancellationToken);
+        return Ok(report);
     }
 
     /// <summary>
@@ -51,16 +39,8 @@ public class ReportsController : ControllerBase
     [ProducesResponseType(typeof(CategoryTotalsReportDto), StatusCodes.Status200OK)]
     public async Task<ActionResult<CategoryTotalsReportDto>> GetCategoryTotals(CancellationToken cancellationToken)
     {
-        try
-        {
-            var report = await _reportService.GetCategoryTotalsAsync(cancellationToken);
-            return Ok(report);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Erro ao gerar relatório de totais por categoria");
-            return StatusCode(500, new { message = "Erro interno do servidor ao gerar relatório" });
-        }
+        var report = await _reportService.GetCategoryTotalsAsync(cancellationToken);
+        return Ok(report);
     }
 }
 

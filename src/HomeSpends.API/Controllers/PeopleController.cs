@@ -7,18 +7,14 @@ namespace HomeSpends.API.Controllers;
 /// <summary>
 /// Controller para gerenciamento de pessoas.
 /// </summary>
-[ApiController]
-[Route("api/[controller]")]
-[Produces("application/json")]
-public class PeopleController : ControllerBase
+public class PeopleController : BaseController
 {
     private readonly IPersonService _personService;
-    private readonly ILogger<PeopleController> _logger;
 
     public PeopleController(IPersonService personService, ILogger<PeopleController> logger)
+        : base(logger)
     {
         _personService = personService;
-        _logger = logger;
     }
 
     /// <summary>
@@ -28,16 +24,8 @@ public class PeopleController : ControllerBase
     [ProducesResponseType(typeof(IEnumerable<PersonDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<PersonDto>>> GetAll(CancellationToken cancellationToken)
     {
-        try
-        {
-            var people = await _personService.GetAllAsync(cancellationToken);
-            return Ok(people);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Erro ao listar pessoas");
-            return StatusCode(500, new { message = "Erro interno do servidor ao listar pessoas" });
-        }
+        var people = await _personService.GetAllAsync(cancellationToken);
+        return Ok(people);
     }
 
     /// <summary>
@@ -48,20 +36,12 @@ public class PeopleController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PersonDto>> GetById(Guid id, CancellationToken cancellationToken)
     {
-        try
+        var person = await _personService.GetByIdAsync(id, cancellationToken);
+        if (person == null)
         {
-            var person = await _personService.GetByIdAsync(id, cancellationToken);
-            if (person == null)
-            {
-                return NotFound(new { message = $"Pessoa com ID {id} não encontrada" });
-            }
-            return Ok(person);
+            return NotFound("Pessoa", id);
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Erro ao buscar pessoa com ID: {PersonId}", id);
-            return StatusCode(500, new { message = "Erro interno do servidor ao buscar pessoa" });
-        }
+        return Ok(person);
     }
 
     /// <summary>
@@ -72,21 +52,14 @@ public class PeopleController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<PersonDto>> Create([FromBody] CreatePersonDto dto, CancellationToken cancellationToken)
     {
-        try
+        var validationResult = ValidateModelState();
+        if (validationResult != null)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            return validationResult;
+        }
 
-            var person = await _personService.CreateAsync(dto, cancellationToken);
-            return CreatedAtAction(nameof(GetById), new { id = person.Id }, person);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Erro ao criar pessoa");
-            return StatusCode(500, new { message = "Erro interno do servidor ao criar pessoa" });
-        }
+        var person = await _personService.CreateAsync(dto, cancellationToken);
+        return CreatedAtAction(nameof(GetById), new { id = person.Id }, person);
     }
 
     /// <summary>
@@ -98,20 +71,8 @@ public class PeopleController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        try
-        {
-            await _personService.DeleteAsync(id, cancellationToken);
-            return NoContent();
-        }
-        catch (KeyNotFoundException)
-        {
-            return NotFound(new { message = $"Pessoa com ID {id} não encontrada" });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Erro ao deletar pessoa com ID: {PersonId}", id);
-            return StatusCode(500, new { message = "Erro interno do servidor ao deletar pessoa" });
-        }
+        await _personService.DeleteAsync(id, cancellationToken);
+        return NoContent();
     }
 }
 

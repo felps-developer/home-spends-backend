@@ -78,7 +78,7 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.CategoryId);
 
             // Validação: Valor deve ser positivo
-            entity.HasCheckConstraint("CK_Transaction_Value_Positive", "[Value] > 0");
+            entity.ToTable(t => t.HasCheckConstraint("CK_Transaction_Value_Positive", "\"Value\" > 0"));
         });
     }
 }

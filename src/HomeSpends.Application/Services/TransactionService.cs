@@ -16,17 +16,20 @@ public class TransactionService : ITransactionService
     private readonly ITransactionRepository _transactionRepository;
     private readonly IPersonRepository _personRepository;
     private readonly ICategoryRepository _categoryRepository;
+    private readonly IMapperService _mapper;
     private readonly ILogger<TransactionService> _logger;
 
     public TransactionService(
         ITransactionRepository transactionRepository,
         IPersonRepository personRepository,
         ICategoryRepository categoryRepository,
+        IMapperService mapper,
         ILogger<TransactionService> logger)
     {
         _transactionRepository = transactionRepository;
         _personRepository = personRepository;
         _categoryRepository = categoryRepository;
+        _mapper = mapper;
         _logger = logger;
     }
 
@@ -36,7 +39,7 @@ public class TransactionService : ITransactionService
         {
             _logger.LogInformation("Buscando todas as transações");
             var transactions = await _transactionRepository.GetAllWithDetailsAsync(cancellationToken);
-            return transactions.Select(MapToDto);
+            return transactions.Select(_mapper.MapToDto);
         }
         catch (Exception ex)
         {
@@ -51,7 +54,7 @@ public class TransactionService : ITransactionService
         {
             _logger.LogInformation("Buscando transação com ID: {TransactionId}", id);
             var transaction = await _transactionRepository.GetByIdWithDetailsAsync(id, cancellationToken);
-            return transaction != null ? MapToDto(transaction) : null;
+            return transaction != null ? _mapper.MapToDto(transaction) : null;
         }
         catch (Exception ex)
         {
@@ -121,42 +124,13 @@ public class TransactionService : ITransactionService
 
             _logger.LogInformation("Transação criada com sucesso: {TransactionId}", created.Id);
 
-            return MapToDto(transactionWithDetails);
+            return _mapper.MapToDto(transactionWithDetails);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Erro ao criar transação");
             throw;
         }
-    }
-
-    private static TransactionDto MapToDto(Transaction transaction)
-    {
-        return new TransactionDto
-        {
-            Id = transaction.Id,
-            Description = transaction.Description,
-            Value = transaction.Value,
-            Type = transaction.Type,
-            Category = new CategoryDto
-            {
-                Id = transaction.Category.Id,
-                Description = transaction.Category.Description,
-                Purpose = transaction.Category.Purpose,
-                CreatedAt = transaction.Category.CreatedAt,
-                UpdatedAt = transaction.Category.UpdatedAt
-            },
-            Person = new PersonDto
-            {
-                Id = transaction.Person.Id,
-                Name = transaction.Person.Name,
-                Age = transaction.Person.Age,
-                CreatedAt = transaction.Person.CreatedAt,
-                UpdatedAt = transaction.Person.UpdatedAt
-            },
-            CreatedAt = transaction.CreatedAt,
-            UpdatedAt = transaction.UpdatedAt
-        };
     }
 }
 

@@ -30,6 +30,7 @@ builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 
 // Injeção de dependências - Serviços
+builder.Services.AddScoped<IMapperService, MapperService>();
 builder.Services.AddScoped<IPersonService, PersonService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();
@@ -60,6 +61,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
+
+// Middleware de tratamento global de exceções
+app.UseMiddleware<HomeSpends.API.Middleware.GlobalExceptionHandlerMiddleware>();
+
 app.UseAuthorization();
 app.MapControllers();
 
@@ -69,14 +74,18 @@ if (app.Environment.IsDevelopment())
     using (var scope = app.Services.CreateScope())
     {
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
         try
         {
             dbContext.Database.Migrate();
+            
+            // Popular o banco com dados iniciais (seed)
+            DbSeeder.Seed(dbContext);
+            logger.LogInformation("Banco de dados populado com dados iniciais");
         }
         catch (Exception ex)
         {
-            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-            logger.LogError(ex, "Erro ao aplicar migrations");
+            logger.LogError(ex, "Erro ao aplicar migrations ou popular banco de dados");
         }
     }
 }

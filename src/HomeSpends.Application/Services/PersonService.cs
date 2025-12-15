@@ -12,11 +12,16 @@ namespace HomeSpends.Application.Services;
 public class PersonService : IPersonService
 {
     private readonly IPersonRepository _repository;
+    private readonly IMapperService _mapper;
     private readonly ILogger<PersonService> _logger;
 
-    public PersonService(IPersonRepository repository, ILogger<PersonService> logger)
+    public PersonService(
+        IPersonRepository repository,
+        IMapperService mapper,
+        ILogger<PersonService> logger)
     {
         _repository = repository;
+        _mapper = mapper;
         _logger = logger;
     }
 
@@ -26,7 +31,7 @@ public class PersonService : IPersonService
         {
             _logger.LogInformation("Buscando todas as pessoas");
             var people = await _repository.GetAllAsync(cancellationToken);
-            return people.Select(MapToDto);
+            return people.Select(_mapper.MapToDto);
         }
         catch (Exception ex)
         {
@@ -41,7 +46,7 @@ public class PersonService : IPersonService
         {
             _logger.LogInformation("Buscando pessoa com ID: {PersonId}", id);
             var person = await _repository.GetByIdAsync(id, cancellationToken);
-            return person != null ? MapToDto(person) : null;
+            return person != null ? _mapper.MapToDto(person) : null;
         }
         catch (Exception ex)
         {
@@ -67,7 +72,7 @@ public class PersonService : IPersonService
             var created = await _repository.AddAsync(person, cancellationToken);
             _logger.LogInformation("Pessoa criada com sucesso: {PersonId}", created.Id);
 
-            return MapToDto(created);
+            return _mapper.MapToDto(created);
         }
         catch (Exception ex)
         {
@@ -104,18 +109,6 @@ public class PersonService : IPersonService
             _logger.LogError(ex, "Erro ao deletar pessoa com ID: {PersonId}", id);
             throw;
         }
-    }
-
-    private static PersonDto MapToDto(Person person)
-    {
-        return new PersonDto
-        {
-            Id = person.Id,
-            Name = person.Name,
-            Age = person.Age,
-            CreatedAt = person.CreatedAt,
-            UpdatedAt = person.UpdatedAt
-        };
     }
 }
 

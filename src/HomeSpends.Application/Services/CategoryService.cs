@@ -12,11 +12,16 @@ namespace HomeSpends.Application.Services;
 public class CategoryService : ICategoryService
 {
     private readonly ICategoryRepository _repository;
+    private readonly IMapperService _mapper;
     private readonly ILogger<CategoryService> _logger;
 
-    public CategoryService(ICategoryRepository repository, ILogger<CategoryService> logger)
+    public CategoryService(
+        ICategoryRepository repository,
+        IMapperService mapper,
+        ILogger<CategoryService> logger)
     {
         _repository = repository;
+        _mapper = mapper;
         _logger = logger;
     }
 
@@ -26,7 +31,7 @@ public class CategoryService : ICategoryService
         {
             _logger.LogInformation("Buscando todas as categorias");
             var categories = await _repository.GetAllAsync(cancellationToken);
-            return categories.Select(MapToDto);
+            return categories.Select(_mapper.MapToDto);
         }
         catch (Exception ex)
         {
@@ -41,7 +46,7 @@ public class CategoryService : ICategoryService
         {
             _logger.LogInformation("Buscando categoria com ID: {CategoryId}", id);
             var category = await _repository.GetByIdAsync(id, cancellationToken);
-            return category != null ? MapToDto(category) : null;
+            return category != null ? _mapper.MapToDto(category) : null;
         }
         catch (Exception ex)
         {
@@ -67,25 +72,13 @@ public class CategoryService : ICategoryService
             var created = await _repository.AddAsync(category, cancellationToken);
             _logger.LogInformation("Categoria criada com sucesso: {CategoryId}", created.Id);
 
-            return MapToDto(created);
+            return _mapper.MapToDto(created);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Erro ao criar categoria");
             throw;
         }
-    }
-
-    private static CategoryDto MapToDto(Category category)
-    {
-        return new CategoryDto
-        {
-            Id = category.Id,
-            Description = category.Description,
-            Purpose = category.Purpose,
-            CreatedAt = category.CreatedAt,
-            UpdatedAt = category.UpdatedAt
-        };
     }
 }
 
